@@ -189,11 +189,26 @@ uint32_t DeckManager::LoadDeck(Deck& deck, uint32_t dbuf[], int mainc, int sidec
 			errorcode = code;
 			continue;
 		}
-		if(deck.side.size() < SIDE_MAX_SIZE)
-        {
-            deck.side.push_back(dataManager.GetCodePointer(code));
-            deck.extra.push_back(dataManager.GetCodePointer(code));
-        }
+		// 修改处：处理side中的额外卡
+		if (is_packlist) {
+			// packlist模式下直接加入side
+			if (deck.side.size() < SIDE_MAX_SIZE) {
+				deck.side.push_back(dataManager.GetCodePointer(code));
+			}
+		}
+		else {
+			// 非packlist模式下检查是否为额外卡
+			if (cd.type & TYPES_EXTRA_DECK) {
+				if (deck.extra.size() < EXTRA_MAX_SIZE) {
+					deck.extra.push_back(dataManager.GetCodePointer(code));
+				}
+			}
+			else {
+				if (deck.side.size() < SIDE_MAX_SIZE) {
+					deck.side.push_back(dataManager.GetCodePointer(code));
+				}
+			}
+		}
 	}
 	return errorcode;
 }
