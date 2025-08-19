@@ -15,7 +15,7 @@
 #endif
 
 #ifndef YGOPRO_MAX_EXTRA
-#define YGOPRO_MAX_EXTRA					15
+#define YGOPRO_MAX_EXTRA					30
 #endif
 
 #ifndef YGOPRO_MAX_SIDE
