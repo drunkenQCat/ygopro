@@ -15,7 +15,7 @@
 #endif
 
 #ifndef YGOPRO_MAX_EXTRA
-#define YGOPRO_MAX_EXTRA					15
+#define YGOPRO_MAX_EXTRA					30
 #endif
 
 #ifndef YGOPRO_MAX_SIDE
@@ -23,14 +23,21 @@
 #endif
 
 namespace ygo {
-	constexpr int DECK_MAX_SIZE = YGOPRO_MAX_DECK;
-	constexpr int DECK_MIN_SIZE = YGOPRO_MIN_DECK;
-	constexpr int EXTRA_MAX_SIZE = YGOPRO_MAX_EXTRA;
-	constexpr int SIDE_MAX_SIZE = YGOPRO_MAX_SIDE;
-	constexpr int PACK_MAX_SIZE = 1000;
 
-	constexpr int MAINC_MAX = 250;	// the limit of card_state
-	constexpr int SIDEC_MAX = MAINC_MAX;
+constexpr int DECK_MAX_SIZE = YGOPRO_MAX_DECK;
+constexpr int DECK_MIN_SIZE = YGOPRO_MIN_DECK;
+constexpr int EXTRA_MAX_SIZE = YGOPRO_MAX_EXTRA;
+constexpr int SIDE_MAX_SIZE = YGOPRO_MAX_SIDE;
+constexpr int PACK_MAX_SIZE = 1000;
+
+constexpr int MAINC_MAX = 250;	// the limit of card_state
+constexpr int SIDEC_MAX = MAINC_MAX;
+
+constexpr int DECK_CATEGORY_PACK = 0;
+constexpr int DECK_CATEGORY_BOT = 1;
+constexpr int DECK_CATEGORY_NONE = 2;
+constexpr int DECK_CATEGORY_SEPARATOR = 3;
+constexpr int DECK_CATEGORY_CUSTOM = 4;
 
 struct LFList {
 	unsigned int hash{};
@@ -65,9 +72,7 @@ public:
 	Deck current_deck;
 	std::vector<LFList> _lfList;
 
-#ifndef YGOPRO_SERVER_MODE
-	static char deckBuffer[0x10000];
-#endif
+	static constexpr int MAX_YDK_SIZE = 0x10000;
 
 	void LoadLFListSingle(const char* path);
 	void LoadLFList();

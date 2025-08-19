@@ -15,6 +15,7 @@ namespace irr {
 }
 
 namespace ygo {
+
 constexpr int MAX_STRING_ID = 0x7ff;
 constexpr uint32_t MIN_CARD_ID = (uint32_t)(MAX_STRING_ID + 1) >> 4;
 constexpr uint32_t MAX_CARD_ID = 0x0fffffffU;
@@ -71,19 +72,15 @@ public:
 	code_pointer GetCodePointer(uint32_t code) const;
 #ifndef YGOPRO_SERVER_MODE
 	string_pointer GetStringPointer(uint32_t code) const;
-	code_pointer datas_begin() const noexcept {
-		return _datas.cbegin();
+#endif
+	const std::unordered_map<uint32_t, CardDataC>& GetDataTable() const {
+		return _datas;
 	}
-	code_pointer datas_end() const noexcept {
-		return _datas.cend();
+#ifndef YGOPRO_SERVER_MODE
+	const std::unordered_map<uint32_t, CardString>& GetStringTable() const {
+		return _strings;
 	}
-	string_pointer strings_begin() const noexcept {
-		return _strings.cbegin();
-	}
-	string_pointer strings_end() const noexcept {
-		return _strings.cend();
-	}
-#endif //YGOPRO_SERVER_MODE
+#endif
 	bool GetData(uint32_t code, CardData* pData) const;
 #ifndef YGOPRO_SERVER_MODE
 	bool GetString(uint32_t code, CardString* pStr) const;
@@ -109,9 +106,17 @@ public:
 	std::unordered_map<unsigned int, std::wstring> _sysStrings;
 #endif
 	char errmsg[512]{};
+	const wchar_t* unknown_string{ L"???" };
+#if !defined(YGOPRO_SERVER_MODE) || defined(SERVER_ZIP_SUPPORT)
+	irr::io::IFileSystem* FileSystem{};
+#endif
+
+	static constexpr int STRING_ID_ATTRIBUTE = 1010;
+	static constexpr int STRING_ID_RACE = 1020;
+	static constexpr int STRING_ID_TYPE = 1050;
+	static constexpr int TYPES_COUNT = 27;
 
 	static unsigned char scriptBuffer[0x100000];
-	static const wchar_t* unknown_string;
 	static uint32_t CardReader(uint32_t, card_data*);
 	static unsigned char* ScriptReaderEx(const char* script_path, int* slen);
 	
@@ -121,10 +126,6 @@ public:
 #endif
 	//read by fread
 	static unsigned char* ReadScriptFromFile(const char* script_name, int* slen);
-	
-#if !defined(YGOPRO_SERVER_MODE) || defined(SERVER_ZIP_SUPPORT)
-	static irr::io::IFileSystem* FileSystem;
-#endif
 
 #ifndef YGOPRO_SERVER_MODE
 	static bool deck_sort_lv(code_pointer l1, code_pointer l2);

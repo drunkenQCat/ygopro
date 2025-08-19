@@ -2,9 +2,9 @@ name: Automated Test Build (Server Mode)
 
 on:
   push:
-    branches: [ "server" ]
+    branches: [ "srv-publish" ]
   pull_request:
-    branches: [ "server" ]
+    branches: [ "srv-publish" ]
 
 jobs:
   build-windows:
