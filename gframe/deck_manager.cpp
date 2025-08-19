@@ -191,7 +191,10 @@ uint32_t DeckManager::LoadDeck(Deck& deck, uint32_t dbuf[], int mainc, int sidec
 			continue;
 		}
 		if(deck.side.size() < SIDE_MAX_SIZE)
-			deck.side.push_back(it);
+        {
+            deck.side.push_back(dataManager.GetCodePointer(code));
+            deck.extra.push_back(dataManager.GetCodePointer(code));
+        }
 	}
 	return errorcode;
 }
