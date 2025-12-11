@@ -5,6 +5,9 @@
 
 namespace ygo {
 
+#ifndef YGOPRO_SERVER_MODE
+char DeckManager::deckBuffer[0x10000]{};
+#endif
 DeckManager deckManager;
 
 void DeckManager::LoadLFListSingle(const char* path) {
@@ -29,15 +32,37 @@ void DeckManager::LoadLFListSingle(const char* path) {
 			}
 			if (cur == _lfList.rend())
 				continue;
+			if(linebuf[0] == '$') {
+				// 解析互斥组规则，格式: $12345678 87654321
+				char* pos = &linebuf[1];
+				std::set<uint32_t> group;
+				while(*pos != '\0' && *pos != '\r' && *pos != '\n') {
+					while(*pos == ' ') pos++;
+					if(*pos == '\0' || *pos == '\r' || *pos == '\n') break;
+					errno = 0;
+					auto result = std::strtoul(pos, &pos, 10);
+					if(errno || result > UINT32_MAX) continue;
+					uint32_t code = static_cast<uint32_t>(result);
+					group.insert(code);
+				}
+				if(group.size() > 1) {
+					cur->mutualExclusiveGroups.push_back(group);
+					// 更新hash以确保互斥组变化时hash也变化
+					for(auto code : group) {
+						cur->hash = cur->hash ^ ((code << 20) | (code >> 12));
+					}
+				}
+				continue;
+			}
 			char* pos = linebuf;
-			errno = 0;
+		errno = 0;
 			auto result = std::strtoul(pos, &pos, 10);
 			if (errno || result > UINT32_MAX)
 				continue;
 			if (pos == linebuf || *pos != ' ')
 				continue;
 			uint32_t code = static_cast<uint32_t>(result);
-			errno = 0;
+		errno = 0;
 			int count = std::strtol(pos, &pos, 10);
 			if (errno)
 				continue;
@@ -50,6 +75,9 @@ void DeckManager::LoadLFListSingle(const char* path) {
 	}
 }
 void DeckManager::LoadLFList() {
+#ifdef SERVER_PRO2_SUPPORT
+	LoadLFListSingle("config/lflist.conf");
+#endif
 	LoadLFListSingle("expansions/lflist.conf");
 	LoadLFListSingle("lflist.conf");
 	LFList nolimit;
@@ -84,6 +112,7 @@ static unsigned int checkAvail(unsigned int ot, unsigned int avail) {
 }
 unsigned int DeckManager::CheckDeck(const Deck& deck, unsigned int lfhash, int rule) {
 	std::unordered_map<int, int> ccount;
+	std::unordered_set<uint32_t> deckCodes;
 	// rule
 	if(deck.main.size() < DECK_MIN_SIZE || deck.main.size() > DECK_MAX_SIZE)
 		return (DECKERROR_MAINCOUNT << 28) | (unsigned)deck.main.size();
@@ -107,6 +136,7 @@ unsigned int DeckManager::CheckDeck(const Deck& deck, unsigned int lfhash, int r
 			return (DECKERROR_MAINCOUNT << 28);
 		int code = cit->second.alias ? cit->second.alias : cit->first;
 		ccount[code]++;
+		deckCodes.insert(code);
 		int dc = ccount[code];
 		if(dc > 3)
 			return (DECKERROR_CARDCOUNT << 28) | cit->first;
@@ -122,6 +152,7 @@ unsigned int DeckManager::CheckDeck(const Deck& deck, unsigned int lfhash, int r
 			return (DECKERROR_EXTRACOUNT << 28);
 		int code = cit->second.alias ? cit->second.alias : cit->first;
 		ccount[code]++;
+		deckCodes.insert(code);
 		int dc = ccount[code];
 		if(dc > 3)
 			return (DECKERROR_CARDCOUNT << 28) | cit->first;
@@ -137,6 +168,7 @@ unsigned int DeckManager::CheckDeck(const Deck& deck, unsigned int lfhash, int r
 			return (DECKERROR_SIDECOUNT << 28);
 		int code = cit->second.alias ? cit->second.alias : cit->first;
 		ccount[code]++;
+		deckCodes.insert(code);
 		int dc = ccount[code];
 		if(dc > 3)
 			return (DECKERROR_CARDCOUNT << 28) | cit->first;
@@ -144,51 +176,78 @@ unsigned int DeckManager::CheckDeck(const Deck& deck, unsigned int lfhash, int r
 		if(it != list.end() && dc > it->second)
 			return (DECKERROR_LFLIST << 28) | cit->first;
 	}
+	// 检查互斥组规则
+	for(const auto& group : lflist->mutualExclusiveGroups) {
+		int count = 0;
+		for(const auto& code : group) {
+			if(deckCodes.find(code) != deckCodes.end()) {
+				count++;
+				if(count > 1) {
+					// 返回第一张违反规则的卡作为错误代码
+					return (DECKERROR_LFLIST << 28) | *group.begin();
+				}
+			}
+		}
+	}
 	return 0;
 }
 uint32_t DeckManager::LoadDeck(Deck& deck, uint32_t dbuf[], int mainc, int sidec, bool is_packlist) {
 	deck.clear();
 	uint32_t errorcode = 0;
-	auto& _datas = dataManager.GetDataTable();
-	for(int i = 0; i < mainc; ++i) {
+	CardData cd;
+	for (int i = 0; i < mainc; ++i) {
 		auto code = dbuf[i];
-		auto it = _datas.find(code);
-		if(it == _datas.end()) {
+		if (!dataManager.GetData(code, &cd)) {
 			errorcode = code;
 			continue;
 		}
-		auto& cd = it->second;
 		if (cd.type & TYPE_TOKEN) {
 			errorcode = code;
 			continue;
 		}
-		if(is_packlist) {
-			deck.main.push_back(it);
+		if (is_packlist) {
+			deck.main.push_back(dataManager.GetCodePointer(code));
 			continue;
 		}
 		if (cd.type & TYPES_EXTRA_DECK) {
 			if (deck.extra.size() < EXTRA_MAX_SIZE)
-				deck.extra.push_back(it);
+				deck.extra.push_back(dataManager.GetCodePointer(code));
 		}
 		else {
 			if (deck.main.size() < DECK_MAX_SIZE)
-				deck.main.push_back(it);
+				deck.main.push_back(dataManager.GetCodePointer(code));
 		}
 	}
-	for(int i = 0; i < sidec; ++i) {
+	for (int i = 0; i < sidec; ++i) {
 		auto code = dbuf[mainc + i];
-		auto it = _datas.find(code);
-		if(it == _datas.end()) {
+		if (!dataManager.GetData(code, &cd)) {
 			errorcode = code;
 			continue;
 		}
-		auto& cd = it->second;
 		if (cd.type & TYPE_TOKEN) {
 			errorcode = code;
 			continue;
 		}
-		if(deck.side.size() < SIDE_MAX_SIZE)
-			deck.side.push_back(it);
+		// 修改处：处理side中的额外卡
+		if (is_packlist) {
+			// packlist模式下直接加入side
+			if (deck.side.size() < SIDE_MAX_SIZE) {
+				deck.side.push_back(dataManager.GetCodePointer(code));
+			}
+		}
+		else {
+			// 非packlist模式下检查是否为额外卡
+			if (cd.type & TYPES_EXTRA_DECK) {
+				if (deck.extra.size() < EXTRA_MAX_SIZE) {
+					deck.extra.push_back(dataManager.GetCodePointer(code));
+				}
+			}
+			else {
+				if (deck.side.size() < SIDE_MAX_SIZE) {
+					deck.side.push_back(dataManager.GetCodePointer(code));
+				}
+			}
+		}
 	}
 	return errorcode;
 }
@@ -228,32 +287,37 @@ bool DeckManager::LoadSide(Deck& deck, uint32_t dbuf[], int mainc, int sidec) {
 		pcount[deck.side[i]->first]++;
 	Deck ndeck;
 	LoadDeck(ndeck, dbuf, mainc, sidec);
+#ifndef YGOPRO_NO_SIDE_CHECK
 	if (ndeck.main.size() != deck.main.size() || ndeck.extra.size() != deck.extra.size() || ndeck.side.size() != deck.side.size())
 		return false;
+#endif
 	for(size_t i = 0; i < ndeck.main.size(); ++i)
 		ncount[ndeck.main[i]->first]++;
 	for(size_t i = 0; i < ndeck.extra.size(); ++i)
 		ncount[ndeck.extra[i]->first]++;
 	for(size_t i = 0; i < ndeck.side.size(); ++i)
 		ncount[ndeck.side[i]->first]++;
+#ifndef YGOPRO_NO_SIDE_CHECK
 	for (auto& cdit : ncount)
 		if (cdit.second != pcount[cdit.first])
 			return false;
+#endif
 	deck = ndeck;
 	return true;
 }
+#ifndef YGOPRO_SERVER_MODE
 void DeckManager::GetCategoryPath(wchar_t* ret, int index, const wchar_t* text) {
 	wchar_t catepath[256];
 	switch(index) {
-	case DECK_CATEGORY_PACK:
+	case 0:
 		myswprintf(catepath, L"./pack");
 		break;
-	case DECK_CATEGORY_BOT:
+	case 1:
 		BufferIO::CopyWideString(mainGame->gameConf.bot_deck_path, catepath);
 		break;
 	case -1:
-	case DECK_CATEGORY_NONE:
-	case DECK_CATEGORY_SEPARATOR:
+	case 2:
+	case 3:
 		myswprintf(catepath, L"./deck");
 		break;
 	default:
@@ -279,11 +343,11 @@ FILE* DeckManager::OpenDeckFile(const wchar_t* file, const char* mode) {
 }
 irr::io::IReadFile* DeckManager::OpenDeckReader(const wchar_t* file) {
 #ifdef _WIN32
-	auto reader = dataManager.FileSystem->createAndOpenFile(file);
+	auto reader = DataManager::FileSystem->createAndOpenFile(file);
 #else
 	char file2[256];
 	BufferIO::EncodeUTF8(file, file2);
-	auto reader = dataManager.FileSystem->createAndOpenFile(file2);
+	auto reader = DataManager::FileSystem->createAndOpenFile(file2);
 #endif
 	return reader;
 }
@@ -293,9 +357,6 @@ bool DeckManager::LoadCurrentDeck(std::istringstream& deckStream, bool is_packli
 }
 bool DeckManager::LoadCurrentDeck(const wchar_t* file, bool is_packlist) {
 	current_deck.clear();
-	if (!file[0])
-		return false;
-	char deckBuffer[MAX_YDK_SIZE]{};
 	auto reader = OpenDeckReader(file);
 	if(!reader) {
 		wchar_t localfile[256];
@@ -322,12 +383,11 @@ bool DeckManager::LoadCurrentDeck(const wchar_t* file, bool is_packlist) {
 bool DeckManager::LoadCurrentDeck(int category_index, const wchar_t* category_name, const wchar_t* deckname) {
 	wchar_t filepath[256];
 	GetDeckFile(filepath, category_index, category_name, deckname);
-	bool is_packlist = (category_index == DECK_CATEGORY_PACK);
-	if(!LoadCurrentDeck(filepath, is_packlist))
-		return false;
-	if (mainGame->is_building)
+	bool is_packlist = (category_index == 0);
+	bool res = LoadCurrentDeck(filepath, is_packlist);
+	if (res && mainGame->is_building)
 		mainGame->deckBuilder.RefreshPackListScroll();
-	return true;
+	return res;
 }
 void DeckManager::SaveDeck(const Deck& deck, std::stringstream& deckStream) {
 	deckStream << "#created by ..." << std::endl;
@@ -401,4 +461,5 @@ bool DeckManager::SaveDeckArray(const DeckArray& deck, const wchar_t* name) {
 	std::fclose(fp);
 	return true;
 }
+#endif //YGOPRO_SERVER_MODE
 }
