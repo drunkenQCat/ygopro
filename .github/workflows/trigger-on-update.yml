@@ -6,27 +6,10 @@ on:
 
 jobs:
   check-and-trigger:
+    if: contains(github.event.head_commit.message, '更新')
     runs-on: ubuntu-latest
     steps:
-      - name: 检出当前仓库
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: 检查提交注释是否包含"更新"
-        id: check
-        run: |
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
-          if [[ "$COMMIT_MSG" == *"更新"* ]]; then
-            echo "trigger=true" >> $GITHUB_OUTPUT
-            echo "✅ 检测到'更新'标记"
-          else
-            echo "trigger=false" >> $GITHUB_OUTPUT
-            echo "⏭️ 未检测到'更新'标记"
-          fi
-
       - name: 检出 srvpro/publish
-        if: steps.check.outputs.trigger == 'true'
         uses: actions/checkout@v4
         with:
           repository: drunkenQCat/srvpro
@@ -35,7 +18,6 @@ jobs:
           fetch-depth: 0
 
       - name: 在 srvpro 创建空提交
-        if: steps.check.outputs.trigger == 'true'
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
