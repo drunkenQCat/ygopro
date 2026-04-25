@@ -275,6 +275,8 @@ jobs:
     needs: [build-windows]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - name: Download build artifacts
@@ -284,12 +286,13 @@ jobs:
         merge-multiple: true
 
     - name: GitHub Release
-      uses: salix5/action-automatic-releases@e0545bc14e9677f38aa573f1a52563022f987356
+      uses: ncipollo/release-action@v1
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "server-latest"
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag: server-latest
+        name: Development Build (Server Mode)
         prerelease: true
-        title: "Development Build (Server Mode)"
-        files: |
+        allowUpdates: true
+        artifacts: |
           x64/ygopro.exe
           x64/AI.Server.exe
