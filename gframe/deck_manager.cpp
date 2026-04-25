@@ -1,5 +1,6 @@
 #include <algorithm>
 #include "deck_manager.h"
+#include "custom_rule.h"
 #include "game.h"
 #include "myfilesystem.h"
 #include "network.h"
@@ -29,6 +30,8 @@ void DeckManager::LoadLFListSingle(const char* path) {
 				continue;
 			}
 			if (cur == _lfList.rend())
+				continue;
+			if (custom_rule::TryHandleLFListLine(*cur, linebuf))
 				continue;
 			char* pos = linebuf;
 			errno = 0;
@@ -148,6 +151,8 @@ uint32_t DeckManager::CheckDeck(const Deck& deck, unsigned int lfhash, size_t ru
 		if(it != list.end() && dc > it->second)
 			return (DECKERROR_LFLIST << 28) | cit->code;
 	}
+	if (auto extraError = custom_rule::CheckDeck(deck, *lflist))
+		return extraError;
 	return 0;
 }
 uint32_t DeckManager::LoadDeck(Deck& deck, uint32_t dbuf[], int mainc, int sidec, bool is_packlist) {
@@ -191,8 +196,15 @@ uint32_t DeckManager::LoadDeck(Deck& deck, uint32_t dbuf[], int mainc, int sidec
 			errorcode = code;
 			continue;
 		}
-		if(deck.side.size() < SIDE_MAX_SIZE)
-			deck.side.push_back(&cd);
+		auto placement = custom_rule::DecideSidePlacement(cd, is_packlist);
+		if (placement == custom_rule::SidePlacement::Extra) {
+			if (deck.extra.size() < EXTRA_MAX_SIZE)
+				deck.extra.push_back(&cd);
+		}
+		else if (placement == custom_rule::SidePlacement::Side) {
+			if (deck.side.size() < SIDE_MAX_SIZE)
+				deck.side.push_back(&cd);
+		}
 	}
 	return errorcode;
 }

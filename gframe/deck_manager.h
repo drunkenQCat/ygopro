@@ -43,6 +43,7 @@ struct LFList {
 	unsigned int hash{};
 	std::wstring listName;
 	std::unordered_map<uint32_t, int> content;
+	std::vector<std::vector<uint32_t>> mutualExclusiveGroups;
 };
 
 class DeckManager {
