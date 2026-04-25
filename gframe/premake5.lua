@@ -10,6 +10,7 @@ project "ygopro"
     files { "gframe.cpp", "config.h",
             "game.cpp", "game.h", "myfilesystem.h",
             "deck_manager.cpp", "deck_manager.h",
+            "custom_rule.cpp", "custom_rule.h",
             "data_manager.cpp", "data_manager.h",
             "replay.cpp", "replay.h",
             "netserver.cpp", "netserver.h",
