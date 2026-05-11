@@ -52,6 +52,7 @@
 
 | 文件 | 修改内容 |
 |------|----------|
+| `gframe/deck.h` | 添加 `#include <cstddef>` 来定义 `size_t` |
 | `gframe/deck_manager.h` | 添加 `#include "extra_deck_helper.h"` |
 | `gframe/deck_manager.cpp` | 在 `LoadDeck` 函数开头调用 `ExtraDeckHelper::PreProcessSideCards` |
 | `gframe/premake5.lua` | 在 SERVER_MODE 项目的 `files` 中添加新文件 |
@@ -60,7 +61,26 @@
 
 ## 原文件修改详情
 
-### 1. `gframe/deck_manager.h`
+### 1. `gframe/deck.h`
+
+**位置**：在 `#include <cstdint>` 之后
+
+**修改前**：
+```cpp
+#include <vector>
+#include <cstdint>
+```
+
+**修改后**：
+```cpp
+#include <vector>
+#include <cstdint>
+#include <cstddef>
+```
+
+---
+
+### 2. `gframe/deck_manager.h`
 
 **位置**：在其他 `#include` 之后
 
@@ -148,18 +168,21 @@ files { "gframe.cpp", "config.h",
    - `gframe/extra_deck_helper.h`
    - `gframe/extra_deck_helper.cpp`
 
-2. **修改 `gframe/deck_manager.h`**：
+2. **修改 `gframe/deck.h`**：
+   - 在 `#include <cstdint>` 之后添加 `#include <cstddef>`
+
+3. **修改 `gframe/deck_manager.h`**：
    - 在 `#include "deck.h"` 之后添加 `#include "extra_deck_helper.h"`
 
-3. **修改 `gframe/deck_manager.cpp`**：
+4. **修改 `gframe/deck_manager.cpp`**：
    - 在 `LoadDeck` 函数开头添加调用代码
 
-4. **修改 `gframe/premake5.lua`**：
+5. **修改 `gframe/premake5.lua`**：
    - 在 `files` 列表中添加新文件
 
-5. **提交代码到 GitLab**：
-   - 项目会自动在 Docker 中构建
-   - premake 会自动生成 Windows 项目文件
+6. **提交代码到 GitHub**：
+   - 项目会自动在 GitHub Actions 中构建
+   - premake 会自动生成项目文件
 
 ---
 
