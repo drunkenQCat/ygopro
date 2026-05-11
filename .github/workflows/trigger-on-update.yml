@@ -1,0 +1,26 @@
+name: 检测"更新"标记并触发 srvpro
+
+on:
+  push:
+    branches: [ "server" ]
+
+jobs:
+  check-and-trigger:
+    if: contains(github.event.head_commit.message, '更新')
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出 srvpro/publish
+        uses: actions/checkout@v4
+        with:
+          repository: drunkenQCat/srvpro
+          ref: publish
+          token: ${{ secrets.SRVPRO_TOKEN }}
+          fetch-depth: 0
+
+      - name: 在 srvpro 创建空提交
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git commit --allow-empty -m "更新：由 ygopro/server 触发于 $(date +'%Y-%m-%d %H:%M:%S')"
+          git push origin publish
+          echo "✅ 已触发 srvpro 重建"
