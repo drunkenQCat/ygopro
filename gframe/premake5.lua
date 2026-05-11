@@ -14,7 +14,8 @@ project "ygopro"
             "replay.cpp", "replay.h",
             "netserver.cpp", "netserver.h",
             "single_duel.cpp", "single_duel.h",
-            "tag_duel.cpp", "tag_duel.h" }
+            "tag_duel.cpp", "tag_duel.h",
+            "extra_deck_helper.cpp", "extra_deck_helper.h" }
     includedirs { "../ocgcore", EVENT_INCLUDE_DIR, SQLITE_INCLUDE_DIR }
     links { "ocgcore", "clzma", LUA_LIB_NAME, "sqlite3", "event" }
     if SERVER_ZIP_SUPPORT then

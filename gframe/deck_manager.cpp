@@ -155,6 +155,10 @@ uint32_t DeckManager::LoadDeck(Deck& deck, uint32_t dbuf[], int mainc, int sidec
 	deck.clear();
 	uint32_t errorcode = 0;
 	auto& _datas = dataManager.GetDataTable();
+
+	// 预处理：将 side 中的额外卡分离出来
+	ExtraDeckHelper::PreProcessSideCards(dbuf, &mainc, &sidec);
+
 	for(int i = 0; i < mainc; ++i) {
 		auto code = dbuf[i];
 		auto it = _datas.find(code);

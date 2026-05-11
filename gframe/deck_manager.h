@@ -5,6 +5,7 @@
 #include <vector>
 #include <sstream>
 #include "deck.h"
+#include "extra_deck_helper.h"
 
 #ifndef YGOPRO_MAX_DECK
 #define YGOPRO_MAX_DECK					60
@@ -15,7 +16,7 @@
 #endif
 
 #ifndef YGOPRO_MAX_EXTRA
-#define YGOPRO_MAX_EXTRA					15
+#define YGOPRO_MAX_EXTRA					30
 #endif
 
 #ifndef YGOPRO_MAX_SIDE
