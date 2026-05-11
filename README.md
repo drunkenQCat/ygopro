@@ -6,6 +6,10 @@
 
 现用于[萌卡](https://mycard.moe/)和[YGOPro 233服](http://mercury233.me/ygosrv233/)。
 
+## 📚 文档
+
+- [30额外模式使用说明](EXTRA_DECK_HELPER.md) - 详细的30额外功能说明
+
 ### Linux下编译
 * 需要以下组件或工具
  * gcc
